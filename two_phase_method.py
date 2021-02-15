@@ -3,117 +3,115 @@ import numpy as np
 import sympy as sym
 from sympy import Rational
 
-def to_npRational(l):
-    return np.array([Rational(i, 1) if isinstance(i, int) else i for i in l])
+M = sym.var("M")
 
-def subs(l):
-    ret = []
-    for i in l:
-        if isinstance(i, sym.core.mul.Mul) or isinstance(i, sym.core.add.Add) or isinstance(i, sym.core.symbol.Symbol):
-            ret.append(i.subs(M, 100000))
-        else:
-            ret.append(i)
-    return np.array(ret)
-
-def to_str(l):
-    if type(l) == list or type(l) == np.ndarray:
-        ret = []
-        for i in l:
-            ret.append(str(i))
-        return np.array(ret)
-    else:
-        return str(l)
-
-# サンプル
-# mode = "min"
-# coeff1 = to_npRational([2, 3, 3, -1, -1, 0, 0, 2]) # z0 + 2y1 + 3y2 + 3y3 - y4 - y5 + 0y6 + 0y7 = 2
-# coeff2 = to_npRational([-5, -8, -9, 0, 0, 0, 0, 0]) # z - 5y1 - 8y2 - 9y3 + 0y4 + 0y5 + 0y6 + 0y7 = 0
-# expr = np.array([
-#     to_npRational([1, 2, 1, -1, 0, 1, 0, 1]), # y1 + 2y3 + y3 - y4 + 0y5 + y6 + 0y7 = 1
-#     to_npRational([1, 1, 2, 0, -1, 0, 1, 1]), # y1 + y2 + 2y3 + 0y4 - y5 + 0y6 + y7 = 1
-# ])
-# base_val = [5, 6] # coeffのインデックス
-
-mode = "max"
-coeff1 = to_npRational([7, 6, 0, -1, 0, 0, 84])
-coeff2 = to_npRational([-3, -2, 0, 0, 0, 0, 0])
-expr = np.array([
-    to_npRational([1, 2, 1, 0, 0, 0, 20]),
-    to_npRational([7, 6, 0, -1, 1, 0, 84]),
-    to_npRational([1, -1, 0, 0, 0, 1, 8]),
+arr = np.array([ #!
+    [1, 2, 1, -1, 0, 1, 0],
+    [1, 1, 2, 0, -1, 0, 1],
+    [-5, -8, -9, 0, 0, 0, 0],
+    [2, 3, 3, -1, -1, 0, 0]
 ])
-base_val = [2, 4, 5] # coeffのインデックス
+const = np.array([1, 1, 0, 2]) #!
+base = np.array([6, 7]) #!
+objective = "min" #!
 
-artificial_val = base_val.copy()
-theta = [0 for _ in expr]
+def to_Rational(i):
+    try:
+        i = Rational(i)
+    except:
+        pass
+    return i
+to_Rational = np.vectorize(to_Rational)
 
-base = "{:>6}" + "{:>8}"*(len(coeff1) - 1) + "{:>8} {:>8}"
+def subs(i):
+    try:
+        i = i.subs(M, 1000000000)
+    except:
+        pass
+    return i
+subs = np.vectorize(subs)
 
-print("第1段階")
-print(base.format("base", *[f"x{i + 1}" for i in range(len(coeff1) - 1)], "const", "theta"))
-while True:
-    pivot_col = np.argmax(subs(coeff1[:-1]))
-    theta = [j / i if i > 0 else Rational(1000000) for i, j in zip(expr[:, pivot_col], expr[:, -1]) ]
-    pivot_row = np.argmin(subs(theta))
-    pivot = [pivot_row, pivot_col]
+def argmax(l):
+    l = subs(l)
+    return np.argmax(l)
+def argmin(l):
+    l = subs(l)
+    return np.argmin(l)
+def check(l):
+    if objective == "max":
+        return sum(subs(l) < 0)
+    else:
+        return sum(subs(l) > 0)
 
-    for i, j in enumerate(base_val):
-        print(base.format(f"x{j + 1}", *to_str(expr[i]), to_str(theta)[i]))
-    print(base.format("x", *to_str(coeff2), "", ""))
-    print(base.format("x0", *to_str(coeff1), "", ""))
-    print("-"*80)
-    if (subs(coeff1[:-1]) <= 0).all():
-        break
-    base_val[pivot_row] = pivot_col
-    expr[pivot_row] = expr[pivot_row] / expr[pivot_row, pivot_col]
-    for i in range(len(base_val)):
-        if (i == pivot_row):
-            continue
-        expr[i] = expr[i] - expr[i][pivot_col]*expr[pivot_row]
-    coeff2 = coeff2 - coeff2[pivot_col]*expr[pivot_row]
-    coeff1 = coeff1 - coeff1[pivot_col]*expr[pivot_row]
-for i, j in enumerate(base_val):
-    print(f"x{j + 1}={expr[i][-1]}")
-print(mode+"="+str(coeff1[-1]))
+def print_table(arr, const, base, theta, is_first):
+    base = np.array(["x"+str(i) for i in base])
+    base = np.append(base, "z")
+    theta = np.append(theta, "-")
+    if is_first:
+        base = np.append(base, "z0")
+        theta = np.append(theta, "-")
+    base = np.expand_dims(base, 1)
+    theta = np.expand_dims(theta, 1)
+    const = np.expand_dims(const, 1)
+    a = np.concatenate([base, arr, const, theta], 1)
+    for i in a:
+        for j in i:
+            print(f"{str(j):>9}", end="|")
+        print()
+    print("-"*10*(arr.shape[1] + 3))
+
+arr = to_Rational(arr)
+const = to_Rational(const)
+base = to_Rational(base)
+theta = np.zeros(len(const) - 2, dtype=arr.dtype)
+
+print("1st")
+header = ["base"]
+header += [str(i + 1) for i in range(arr.shape[-1])]
+header += ["const", "θ"]
+for i in header:
+    print(f"{i:>9}", end="|")
 print()
+print("-"*10*(arr.shape[1] + 3))
+print_table(arr, const, base, theta, 1)
+while check(arr[-1]):
+    idx1 = argmin(arr[-1]) if objective == "max" else argmax(arr[-1])
+    theta = const[:-2]/arr[:-2, idx1]
+    idx2 = argmin(theta)
+    v = arr[idx2, idx1]
+    tmp = np.ones(len(arr), bool)
+    tmp[idx2] = False
+    v2 = arr[tmp, idx1].reshape(-1, 1)
+    arr[idx2] /= v
+    const[idx2] /= v
+    arr[tmp] -= v2*arr[idx2]
+    const[tmp] -= v2.reshape(-1)*const[idx2]
+    base[idx2] = idx1 + 1
+    print_table(arr, const, base, theta, 1)
+minus_idx = arr[-1] < 0
+arr = arr[:, ~minus_idx][:-1]
+const = const[:-1]
 
-print("第2段階")
-del_idx = set(artificial_val)
-for i, j in enumerate(coeff1[:-1]):
-    if j < 0:
-        del_idx.add(i)
-expr = np.delete(expr, list(del_idx), axis=1)
-coeff2 = np.delete(coeff2, list(del_idx))
-
-base = "{:>6}" + "{:>8}"*(len(coeff2) - 1) + "{:>8} {:>8}"
-
-print(base.format("base", *[f"x{i + 1}" for i in range(len(coeff2) - 1)], "const", "theta"))
-while True:
-    if mode == "max":
-        pivot_col = np.argmin(subs(coeff2[:-1]))
-    else:
-        pivot_col = np.argmax(subs(coeff2[:-1]))
-    theta = [j / i if i > 0 else Rational(100000) for i, j in zip(expr[:, pivot_col], expr[:, -1]) ]
-    pivot_row = np.argmin(subs(theta))
-    pivot = [pivot_row, pivot_col]
-
-    for i, j in enumerate(base_val):
-        print(base.format(f"x{j + 1}", *to_str(expr[i]), to_str(theta)[i]))
-    print(base.format("x", *to_str(coeff2), "", ""))
-    print("-"*80)
-    if mode == "max":
-        if (subs(coeff2[:-1]) >= 0).all():
-            break
-    else:
-        if (subs(coeff2[:-1]) <= 0).all():
-            break
-    base_val[pivot_row] = pivot_col
-    expr[pivot_row] = expr[pivot_row] / expr[pivot_row, pivot_col]
-    for i in range(len(base_val)):
-        if (i == pivot_row):
-            continue
-        expr[i] = expr[i] - expr[i][pivot_col]*expr[pivot_row]
-    coeff2 = coeff2 - coeff2[pivot_col]*expr[pivot_row]
-for i, j in enumerate(base_val):
-    print(f"x{j + 1}={expr[i][-1]}")
-print(mode+"="+str(coeff2[-1]))
+print("\n2nd")
+header = ["base"]
+header += [str(i + 1) for i in range(arr.shape[-1])]
+header += ["const", "θ"]
+for i in header:
+    print(f"{i:>9}", end="|")
+print()
+print("-"*10*(arr.shape[1] + 3))
+print_table(arr, const, base, theta, 0)
+while check(arr[-1]):
+    idx1 = argmin(arr[-1]) if objective == "max" else argmax(arr[-1])
+    theta = const[:-1]/arr[:-1, idx1]
+    idx2 = argmin(theta)
+    v = arr[idx2, idx1]
+    tmp = np.ones(len(arr), bool)
+    tmp[idx2] = False
+    v2 = arr[tmp, idx1].reshape(-1, 1)
+    arr[idx2] /= v
+    const[idx2] /= v
+    arr[tmp] -= v2*arr[idx2]
+    const[tmp] -= v2.reshape(-1)*const[idx2]
+    base[idx2] = idx1 + 1
+    print_table(arr, const, base, theta, 0)

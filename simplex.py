@@ -3,74 +3,83 @@ import numpy as np
 import sympy as sym
 from sympy import Rational
 
-sym.var("M")
+M = sym.var("M")
 
-def to_npRational(l):
-    return np.array([Rational(i, 1) if isinstance(i, int) else i for i in l])
-
-def subs(l):
-    ret = []
-    for i in l:
-        if isinstance(i, sym.core.mul.Mul) or isinstance(i, sym.core.add.Add) or isinstance(i, sym.core.symbol.Symbol):
-            ret.append(i.subs(M, 100000))
-        else:
-            ret.append(i)
-    return np.array(ret)
-
-def to_str(l):
-    if type(l) == list or type(l) == np.ndarray:
-        ret = []
-        for i in l:
-            ret.append(str(i))
-        return np.array(ret)
-    else:
-        return str(l)
-
-mode = "max"
-coeff = to_npRational([1, 1, 1, 0, -M]) # x0 = x1 + x2 + x3 -Mx5
-expr = np.array([
-    to_npRational([1, -2, 6, 1, 0, 54]), # x1 - 2x2 + 6x3 + x4 = 54
-    to_npRational([1, 1, 3, 0, 1, 12]) # x1 + x2 + 3x3 + x5 = 12
+arr = np.array([ #!
+    [1, 2, 1, -1, 0, 1, 0],
+    [1, 1, 2, 0, -1, 0, 1],
+    [2*M - 5, 3*M - 8, 3*M - 9, -M, -M, 0, 0],
 ])
-base_val = [3, 4] # coeffのインデックス
+const = np.array([1, 1, 2*M]) #!
+base = np.array([6, 7]) #!
+objective = "min" #!
 
-theta = [0 for _ in expr]
+def to_Rational(i):
+    try:
+        i = Rational(i)
+    except:
+        pass
+    return i
+to_Rational = np.vectorize(to_Rational)
 
-base = "{:>10}{:>10}" + "{:>10}"*len(coeff) + "{:>10} {:>10}"
+def subs(i):
+    try:
+        i = i.subs(M, 1000000000)
+    except:
+        pass
+    return i
+subs = np.vectorize(subs)
 
-first = True
-while True:
-    pi = expr.T @ coeff[base_val]
-    c_pi = coeff - pi[:-1]
-    if mode == "max":
-        pivot_col = np.argmax(subs(c_pi))
+def argmax(l):
+    l = subs(l)
+    return np.argmax(l)
+def argmin(l):
+    l = subs(l)
+    return np.argmin(l)
+def check(l):
+    if objective == "max":
+        return sum(subs(l) < 0)
     else:
-        pivot_col = np.argmin(subs(c_pi))
-    theta = [j / i if i > 0 else Rational(100000000) for i, j in zip(expr[:, pivot_col], expr[:, -1]) ]
-    pivot_row = np.argmin(subs(theta))
-    pivot = [pivot_row, pivot_col]
+        return sum(subs(l) > 0)
 
-    if first:
-        print(base.format("", "c", *to_str(coeff), "", ""))
-        first = False
-        print(base.format("c", "base", *[f"x{i + 1}" for i in range(len(coeff))], "const", "theta"))
-    for i, j in enumerate(base_val):
-        print(base.format(to_str(coeff[j]), f"x{j + 1}", *to_str(expr[i]), to_str(theta)[i]))
-    print(base.format("", "pi", *to_str(pi), "", ""))
-    print(base.format("", "c - pi", *to_str(c_pi), "", "", ""))
-    print("-"*90)
-    base_val[pivot_row] = pivot_col
-    expr[pivot_row] = expr[pivot_row] / expr[pivot_row, pivot_col]
-    for i in range(len(base_val)):
-        if (i == pivot_row):
-            continue
-        expr[i] = expr[i] - expr[i][pivot_col]*expr[pivot_row]
-    if mode == "max":
-        if (subs(c_pi) <= 0).all():
-            break
-    else:
-        if (subs(c_pi) >= 0).all():
-            break
-for i, j in enumerate(base_val):
-    print(f"x{j + 1}={expr[i][-1]}")
-print(mode+"="+str(pi[-1]))
+def print_table(arr, const, base, theta):
+    base = np.array(["x"+str(i) for i in base])
+    base = np.append(base, "z0")
+    theta = np.append(theta, "-")
+    base = np.expand_dims(base, 1)
+    theta = np.expand_dims(theta, 1)
+    const = np.expand_dims(const, 1)
+    a = np.concatenate([base, arr, const, theta], 1)
+    for i in a:
+        for j in i:
+            print(f"{str(j):>9}", end="|")
+        print()
+    print("-"*10*(arr.shape[1] + 3))
+
+arr = to_Rational(arr)
+const = to_Rational(const)
+base = to_Rational(base)
+theta = np.zeros(len(const) - 1, dtype=arr.dtype)
+
+header = ["base"]
+header += [str(i + 1) for i in range(arr.shape[-1])]
+header += ["const", "θ"]
+for i in header:
+    print(f"{i:>9}", end="|")
+print()
+print("-"*10*(arr.shape[1] + 3))
+print_table(arr, const, base, theta)
+while check(arr[-1]):
+    idx1 = argmin(arr[-1]) if objective == "max" else argmax(arr[-1])
+    theta = const[:-1]/arr[:-1, idx1]
+    idx2 = argmin(theta)
+    v = arr[idx2, idx1]
+    tmp = np.ones(len(arr), bool)
+    tmp[idx2] = False
+    v2 = arr[tmp, idx1].reshape(-1, 1)
+    arr[idx2] /= v
+    const[idx2] /= v
+    arr[tmp] -= v2*arr[idx2]
+    const[tmp] -= v2.reshape(-1)*const[idx2]
+    base[idx2] = idx1 + 1
+    print_table(arr, const, base, theta)
