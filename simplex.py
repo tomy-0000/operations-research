@@ -6,12 +6,14 @@ from sympy import Rational
 M = sym.var("M")
 
 arr = np.array([ #!
-    [1, -2, 6, 1, 0],
-    [1, 1, 3, 0, 1],
-    [-(1 + M), -(1 + M), -(1 + 3*M), 0, 0],
+    [1, 4, 1, 0, 0, 0],
+    [3, 5, 0, 1, 0, 0],
+    [1, -1, 0, 0, 1, 0],
+    [-1, 1, 0, 0, 0, 1],
+    [-2, -10, 0, 0, 0, 0] #! 目的関数
 ])
-const = np.array([54, 12, -12*M]) #!
-base = np.array([4, 5]) #!
+const = np.array([8, 21, 4, 1, 0]) #!
+base = np.array([3, 4, 5, 6]) #!
 objective = "max" #!
 
 def to_Rational(i):

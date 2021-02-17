@@ -6,15 +6,14 @@ from sympy import Rational
 M = sym.var("M")
 
 arr = np.array([ #!
-    [1, 2, 1, 0, 0, 0],
-    [7, 6, 0, -1, 1, 0],
-    [1, -1, 0, 0, 0, 1],
-    [-3, -2, 0, 0, 0, 0],
-    [7, 6, 0, -1, 0, 0]
+    [2, 5, 1, 1, 0, 0],
+    [-1, 2, -1, 0, -1, 1],
+    [-2, 4, -2, 0, 0, 0],
+    [-1, 2, -1, 0, -1, 0],
 ])
-const = np.array([20, 84, 8, 0, 84]) #!
-base = np.array([3, 5, 6]) #!
-artificial = np.array([5])
+const = np.array([10, 2, 0, 2]) #!
+base = np.array([4, 6]) #!
+artificial = np.array([6]) #!
 objective = "max" #!
 
 def to_Rational(i):
@@ -96,7 +95,6 @@ while check(arr[-1], "min"):
     base[idx2] = idx1 + 1
 print_table(arr, const, base, theta, 1, 1)
 del_idx = arr[-1] < 0 | np.isin(np.arange(arr.shape[1]), artificial - 1)
-print(np.isin(np.arange(arr.shape[1]), artificial - 1))
 arr[:, del_idx] = 0
 arr = arr[:-1]
 const = const[:-1]
