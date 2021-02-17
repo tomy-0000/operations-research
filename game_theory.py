@@ -2,6 +2,7 @@
 import numpy as np
 import sympy as sym
 from itertools import combinations
+import matplotlib.pyplot as plt
 
 A = np.array([
     [-3, -1, 2],
@@ -36,7 +37,22 @@ if not stable:
     for i in A:
         z = sym.Symbol("z")
         expr.append(i[0]*var + i[1]*(1 - var) - z)
+    print(expr)
+    print()
     for i in combinations(expr, 2):
         print(i)
         print(sym.solve(i))
         print()
+
+#%%
+def f1(x):
+    return -6*x + 3
+def f2(x):
+    return -2*x + 1
+def f3(x):
+    return 3*x - 1
+x = np.arange(0, 1, 0.001)
+ax = plt.subplot()
+ax.plot(x, f1(x))
+ax.plot(x, f2(x))
+ax.plot(x, f3(x))

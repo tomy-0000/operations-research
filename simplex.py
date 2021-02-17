@@ -6,13 +6,13 @@ from sympy import Rational
 M = sym.var("M")
 
 arr = np.array([ #!
-    [1, 2, 1, -1, 0, 1, 0],
-    [1, 1, 2, 0, -1, 0, 1],
-    [2*M - 5, 3*M - 8, 3*M - 9, -M, -M, 0, 0],
+    [1, -2, 6, 1, 0],
+    [1, 1, 3, 0, 1],
+    [-(1 + M), -(1 + M), -(1 + 3*M), 0, 0],
 ])
-const = np.array([1, 1, 2*M]) #!
-base = np.array([6, 7]) #!
-objective = "min" #!
+const = np.array([54, 12, -12*M]) #!
+base = np.array([4, 5]) #!
+objective = "max" #!
 
 def to_Rational(i):
     try:
@@ -30,6 +30,9 @@ def subs(i):
     return i
 subs = np.vectorize(subs)
 
+def div(const, arr):
+    return np.where(arr <= 0, np.inf, const/arr)
+
 def argmax(l):
     l = subs(l)
     return np.argmax(l)
@@ -42,12 +45,14 @@ def check(l):
     else:
         return sum(subs(l) > 0)
 
-def print_table(arr, const, base, theta):
+def print_table(arr, const, base, theta, is_last=0):
     base = np.array(["x"+str(i) for i in base])
     base = np.append(base, "z0")
     theta = np.append(theta, "-")
     base = np.expand_dims(base, 1)
     theta = np.expand_dims(theta, 1)
+    if is_last:
+        theta = np.full_like(theta, "-")
     const = np.expand_dims(const, 1)
     a = np.concatenate([base, arr, const, theta], 1)
     for i in a:
@@ -68,10 +73,11 @@ for i in header:
     print(f"{i:>9}", end="|")
 print()
 print("-"*10*(arr.shape[1] + 3))
-print_table(arr, const, base, theta)
+cnt = 0
 while check(arr[-1]):
     idx1 = argmin(arr[-1]) if objective == "max" else argmax(arr[-1])
-    theta = const[:-1]/arr[:-1, idx1]
+    theta = div(const[:-1], arr[:-1, idx1])
+    print_table(arr, const, base, theta)
     idx2 = argmin(theta)
     v = arr[idx2, idx1]
     tmp = np.ones(len(arr), bool)
@@ -82,4 +88,7 @@ while check(arr[-1]):
     arr[tmp] -= v2*arr[idx2]
     const[tmp] -= v2.reshape(-1)*const[idx2]
     base[idx2] = idx1 + 1
-    print_table(arr, const, base, theta)
+    cnt += 1
+    if cnt == 10:
+        break
+print_table(arr, const, base, theta, 1)
